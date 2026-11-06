@@ -53,12 +53,19 @@ Cases 1-10 were used while building the system, so their scores are optimistic. 
 
 | Case | Data | Owner's claim | Result |
 |---|---|---|---|
-| case11 | Hotel bookings, Lisbon, Jan-May 2017, plus the same weeks of 2016 (real) | "Our new booking website made cancellations jump; switch back" | not run yet |
-| case12 | UK online gift wholesaler, Dec 2010 - Mar 2011 (real) | "Our January discount almost doubled units sold; triple the stock" | not run yet |
-| case13 | Same shop, Jul - Nov 2011 (real) | "Autumn growth is real and broad; hire two temporary packers" | not run yet |
+| case11 | Hotel bookings, Lisbon, Jan-May 2017, plus the same weeks of 2016 (real) | "Our new booking website made cancellations jump; switch back" | 3/3 |
+| case12 | UK online gift wholesaler, Dec 2010 - Mar 2011 (real) | "Our January discount almost doubled units sold; triple the stock" | 3/3 |
+| case13 | Same shop, Jul - Nov 2011 (real) | "Autumn growth is real and broad; hire two temporary packers" | 2.5/3 |
 
-Answer key fingerprint, SHA-256 of `cases11_13_key.md`:
-`643cbaba5a3063fc0ea65ef79a25c6789793ac3e636fdbf01fb9c37a53a0f841`
+**Held-out score: 8.5 / 9** (one run each, 2026-11-06). The answer key is now published in [`evals/cases11_13_key.md`](evals/cases11_13_key.md); its SHA-256 still matches the fingerprint published before the runs:
+`643cbaba5a3063fc0ea65ef79a25c6789793ac3e636fdbf01fb9c37a53a0f841`. Point-by-point grades: [`evals/cases11_13_grades.md`](evals/cases11_13_grades.md).
+
+What the held-out test showed:
+- **The right conclusion in all three cases.** The hotel's rise in cancellations came from a change in booking mix (more bookings made months ahead, which always cancel more), and the same rise happened last year with the old website. The "best week ever" was one huge order cancelled the same week. The autumn growth was real and broad.
+- **Lost half a point on the owner-is-right case.** It confirmed the growth, then still told the owner to re-check two flagged weeks before fixing the number of hires, although its own critic had shown the growth holds without them. Same pattern as before: better at catching wrong claims than at backing right ones.
+- **A right answer reached partly by breaking a rule.** In case11 the correct rates inside each booking group came from the critic dividing by hand, against the system's "no mental arithmetic" rule (it said so openly, and the number auditor flagged the numbers). The diagnoser had compared counts instead of rates. Missing tool: a ratio over a whole period, by group.
+- **Number auditor false alarms:** Persian thousands separators split one number into two, and dates, years and "about 73 thousand" were flagged.
+- **Small sample.** Three cases, one run each. This is a first honest measurement, not a reliable error rate. These cases have now been seen, so the next honest test needs new cases again.
 
 The owners and their stories in these three cases (the website launch, the January discount, the hiring plan) are invented; the numbers come from the real datasets.
 
@@ -74,7 +81,7 @@ At the end the program asks for your decision (`approve` / `reject`). Outputs ar
 
 ## Honest limits
 
-- Early build. Four real-data practice cases (22/24 over 8 runs, but the system was tuned on them) and three held-out cases (results pending). A reliable error rate needs many more cases and repeated runs.
+- Early build. Four real-data practice cases (22/24 over 8 runs, but the system was tuned on them) and three held-out cases (8.5/9, one run each). A reliable error rate needs many more cases and repeated runs.
 - Works on weekly CSV tables only.
 - Diagnosis, not a guarantee: the summary gives conditional next steps, and a human decides.
 
