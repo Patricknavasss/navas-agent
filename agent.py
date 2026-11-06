@@ -224,8 +224,9 @@ def data_health(name):
             warnings.append("سقوط ناگهانی در «" + c + "» (کمتر از ۴۰٪ میانه‌ی ۸ هفته‌ی قبل): هفته‌های " + ", ".join(str(w) for w in ws)
                             + ". ممکن است واقعی باشد یا داده‌ی ناقص (مثلاً پایان خروجی گرفتن از سیستم).")
         for c, info in partial.items():
-            warnings.append("هفته‌های ناقص طبق «" + c + "»: " + ", ".join(str(w) for w in info["weeks_below"])
-                            + ". این هفته‌ها کامل ثبت نشده‌اند؛ مقایسه‌شان با هفته‌های کامل گمراه‌کننده است.")
+            warnings.append("در هفته‌های " + ", ".join(str(w) for w in info["weeks_below"]) + " مقدار «" + c
+                            + "» کمتر از حالت عادی است. دو توضیح ممکن است: یا کسب‌وکار در آن زمان واقعاً کار نکرده یا تعطیل بوده"
+                            + " (پس افت واقعی است)، یا ثبت داده خراب یا ناقص بوده. داده به‌تنهایی نمی‌گوید کدام؛ هر دو را بگو و یکی را بدون مدرک قطعی نکن.")
     result["warnings"] = warnings if warnings else ["مشکل آشکاری در داده پیدا نشد (این تضمین درستی نیست)."]
     return result
 
@@ -246,7 +247,10 @@ def run_tool(name, args):
         result = FUNCS[name](**args)
     except Exception as e:
         result = {"error": str(e)}
-    return json.dumps(result, ensure_ascii=False)[:8000]
+    text = json.dumps(result, ensure_ascii=False)
+    if len(text) > 30000:
+        text = text[:30000] + " ... [خروجی ابزار بریده شد؛ برای دیدن بقیه، ستون یا گروه کمتری بخواه]"
+    return text
 
 
 # ====================== توصیف ابزارها برای مدل ======================
@@ -344,7 +348,8 @@ def audit_numbers(report, evidence_text):
     for x in to_numbers(report):
         if x == int(x) and x <= 12:   # شماره‌ی هفته و شمارش‌های کوچک
             continue
-        close = any(abs(x - e) <= 0.051 for e in evidence) if x != int(x) else (round(x, 2) in evidence)
+        close = (any(abs(x - e) <= 0.051 for e in evidence) if x != int(x)
+                 else (round(x, 2) in evidence or any(e != int(e) and abs(x - e) <= 0.5 for e in evidence)))
         if not close and x not in suspicious:
             suspicious.append(x)
     return suspicious

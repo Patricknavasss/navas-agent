@@ -21,16 +21,19 @@ Each case is a weekly CSV table plus the owner's claim (`problem.txt`). Some own
 
 | Case | Data | Owner's claim | A good answer must | Result |
 |---|---|---|---|---|
-| case7 | Olist e-commerce (real) | "Sellers ship poor-quality products" | Find the late-delivery link, and not confirm a guess the data cannot test | 3/3 (one run, before the data health check was added) |
-| case8 | Bike sharing, Washington DC 2012 (real) | "The storm caused the drop" | Agree when the evidence supports it, and flag the missing recorded hours | 2.5/3 (see notes) |
+| case7 | Olist e-commerce (real) | "Sellers ship poor-quality products" | Find the late-delivery link, and not confirm a guess the data cannot test | 3/3, re-run 3/3 |
+| case8 | Bike sharing, Washington DC 2012 (real) | "The storm caused the drop" | Agree when the evidence supports it, and flag the missing recorded hours | 2.5/3, re-run 2/3 (see notes) |
 | case9 | Olist, with injected duplicate rows | "Our campaign doubled orders" | Catch the duplicates, and not support tripling the budget | 3/3 |
 | case10 | Olist 2018 (real) | "Orders collapsed, cut marketing" | Flag the incomplete end of the export, and not support cutting the budget | 3/3 |
 | case1-6 | Synthetic practice cases | various | various | early tests |
 
-**Score so far on real-data cases: 11.5 / 12** (one run each, 2026-11-05 and 2026-11-06). This is a small set of cases that I built myself, so it is not yet a reliable error rate.
+**Score so far on real-data cases: 16.5 / 18 over 6 runs** (2026-11-05 and 2026-11-06). This is a small set of cases that I built myself, so it is not yet a reliable error rate. The same case can also get a different score on a different run, so each case needs several runs.
 
 What went wrong, and what changed:
 - **case8:** the diagnoser's report was cut off (too long). The critic noticed it and still reached a sound answer: the storm explains part of the drop, and rentals also stayed lower afterwards (season). But the summary understated the storm's share and wrongly called the Christmas week "incomplete" (it was a real holiday dip). Fix: the agent now retries once with a compact report when its output is cut off, and the summary must keep the critic's "probably" instead of turning it into a fact. case8 will be re-run.
+- **case8, re-run:** the report was complete this time and the Christmas week was described correctly, but the agent decided that the storm days' missing hours were "only a recording problem, not a real drop". The data cannot tell a closed service from a broken log. The cause was my own wording in the data health check, which called those weeks "not fully recorded". Fix: the warning now names both explanations and tells the agent not to pick one without evidence.
+- **case7, re-run:** still 3/3, but long tool outputs were cut at 8,000 characters, so the agent and the critic saw only part of the weeks. Fix: tool outputs now go up to 30,000 characters and say clearly when they are cut.
+- **Number auditor:** it flagged integers that were simply rounded from a tool's decimal (228 from 228.21). Fix: rounding to a whole number is now accepted.
 - **case9:** the summary halved the duplicated weeks by itself. The numbers were right, but the number auditor still flagged them, because they did not come from a tool. That is the auditor doing its job.
 
 ## Run it
