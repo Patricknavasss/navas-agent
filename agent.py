@@ -299,12 +299,20 @@ SYSTEM = """تو «تشخیص‌دهنده» هستی. کارت پیدا کرد�
 def run_agent(model, system, first_message, max_steps, label):
     messages = [{"role": "user", "content": first_message}]
     trace = []
+    retried = False
     for step in range(max_steps):
         response = client.messages.create(
-            model=model, max_tokens=6000, system=system, tools=TOOLS, messages=messages)
+            model=model, max_tokens=8000, system=system, tools=TOOLS, messages=messages)
         if response.stop_reason != "tool_use":
             text = "\n".join(b.text for b in response.content if b.type == "text")
             if response.stop_reason == "max_tokens":
+                if not retried:
+                    # one retry: ask for a complete but compact final report instead of returning a cut-off text
+                    retried = True
+                    print(label, "متن بریده شد؛ یک بار درخواست نسخه‌ی کامل و فشرده...")
+                    messages.append({"role": "assistant", "content": [{"type": "text", "text": text or "..."}]})
+                    messages.append({"role": "user", "content": "متن تو بریده شد چون خیلی طولانی بود. گزارش نهایی را از اول کامل ولی فشرده بنویس: بدون جدول بلند و بدون تکرار عددهای خام."})
+                    continue
                 text += "\n\n[هشدار: متن بریده شد]"
             return text, trace
         messages.append({"role": "assistant", "content": response.content})
@@ -395,7 +403,7 @@ OWNER_SYSTEM = """تو نویسنده‌ی «خلاصه برای صاحب کسب
 ورودی: علامت مشکل، گزارش تشخیص‌دهنده، و نقد منتقد. بر پایه‌ی هر دو بنویس؛ هر جا منتقد گزارش را اصلاح کرده، نسخه‌ی اصلاح‌شده را بیاور.
 قوانین:
 1. فارسی ساده، جمله‌های کوتاه، بدون اصطلاح. اگر اصطلاح لازم است یک بار با کلمه‌ی ساده توضیح بده.
-2. هیچ عددی از خودت نساز؛ فقط عددهایی که در گزارش یا نقد هست. بیش از ۵ عدد نیاور و هر عدد را با معنایش بگو (نه «هفته ۷»؛ بگو «از میانه‌ی دوره»).
+2. وقتی گزارش یا نقد گفته «احتمالاً» یا «شاید»، همان تردید را نگه دار و آن را قطعی نکن. هیچ عددی از خودت نساز؛ فقط عددهایی که در گزارش یا نقد هست. بیش از ۵ عدد نیاور و هر عدد را با معنایش بگو (نه «هفته ۷»؛ بگو «از میانه‌ی دوره»).
 3. این بخش‌ها را دقیقاً بنویس:
 ## مشکل در یک جمله
 ## چه اتفاقی افتاده (۳ نکته‌ی کوتاه)

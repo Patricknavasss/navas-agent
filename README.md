@@ -22,12 +22,16 @@ Each case is a weekly CSV table plus the owner's claim (`problem.txt`). Some own
 | Case | Data | Owner's claim | A good answer must | Result |
 |---|---|---|---|---|
 | case7 | Olist e-commerce (real) | "Sellers ship poor-quality products" | Find the late-delivery link, and not confirm a guess the data cannot test | 3/3 (one run, before the data health check was added) |
-| case8 | Bike sharing, Washington DC 2012 (real) | "The storm caused the drop" | Agree when the evidence supports it, and flag the missing recorded hours | pending |
-| case9 | Olist, with injected duplicate rows | "Our campaign doubled orders" | Catch the duplicates, and not support tripling the budget | pending |
-| case10 | Olist 2018 (real) | "Orders collapsed, cut marketing" | Flag the incomplete end of the export, and not support cutting the budget | pending |
+| case8 | Bike sharing, Washington DC 2012 (real) | "The storm caused the drop" | Agree when the evidence supports it, and flag the missing recorded hours | 2.5/3 (see notes) |
+| case9 | Olist, with injected duplicate rows | "Our campaign doubled orders" | Catch the duplicates, and not support tripling the budget | 3/3 |
+| case10 | Olist 2018 (real) | "Orders collapsed, cut marketing" | Flag the incomplete end of the export, and not support cutting the budget | 3/3 |
 | case1-6 | Synthetic practice cases | various | various | early tests |
 
-One test is not an error rate. Results will be updated as more cases are run.
+**Score so far on real-data cases: 11.5 / 12** (one run each, 2026-11-05 and 2026-11-06). This is a small set of cases that I built myself, so it is not yet a reliable error rate.
+
+What went wrong, and what changed:
+- **case8:** the diagnoser's report was cut off (too long). The critic noticed it and still reached a sound answer: the storm explains part of the drop, and rentals also stayed lower afterwards (season). But the summary understated the storm's share and wrongly called the Christmas week "incomplete" (it was a real holiday dip). Fix: the agent now retries once with a compact report when its output is cut off, and the summary must keep the critic's "probably" instead of turning it into a fact. case8 will be re-run.
+- **case9:** the summary halved the duplicated weeks by itself. The numbers were right, but the number auditor still flagged them, because they did not come from a tool. That is the auditor doing its job.
 
 ## Run it
 
@@ -41,7 +45,7 @@ At the end the program asks for your decision (`approve` / `reject`). Outputs ar
 
 ## Honest limits
 
-- Early build. One real-data test passed so far; the error rate is not measured yet.
+- Early build. Four real-data cases so far (11.5/12, one run each); a reliable error rate needs many more cases and repeated runs.
 - Works on weekly CSV tables only.
 - Diagnosis, not a guarantee: the summary gives conditional next steps, and a human decides.
 
