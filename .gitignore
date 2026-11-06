@@ -1,0 +1,17 @@
+# outputs of a run (each run writes these next to run.py)
+report_*.md
+critique_*.md
+summary_*.md
+audit_*.txt
+trace_*.json
+approval_*.json
+final_*.md
+final_*.html
+chart_*.svg
+result*.md
+*.png
+# local stuff
+__pycache__/
+_old_tests/
+.env
+.DS_Store
