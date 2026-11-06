@@ -43,6 +43,25 @@ What went wrong, and what changed:
 - **Number auditor:** it flagged integers that were simply rounded from a tool's decimal (228 from 228.21). Fix: rounding to a whole number is now accepted.
 - **case9:** the summary halved the duplicated weeks by itself. The numbers were right, but the number auditor still flagged them, because they did not come from a tool. That is the auditor doing its job.
 
+## Held-out test (pre-registered on 2026-11-06)
+
+Cases 1-10 were used while building the system, so their scores are optimistic. Cases 11-13 are new: built from two real public datasets the system has never seen, after the last change to the code. The rules:
+
+- The code and prompts stay frozen until all three cases have been run.
+- Each case is run once, and the result is reported as it is, good or bad.
+- The answer key was written before any run. Its SHA-256 fingerprint is published here first, so anyone can check later that the key was not edited after seeing the results. The key itself will be published after grading.
+
+| Case | Data | Owner's claim | Result |
+|---|---|---|---|
+| case11 | Hotel bookings, Lisbon, Jan-May 2017, plus the same weeks of 2016 (real) | "Our new booking website made cancellations jump; switch back" | not run yet |
+| case12 | UK online gift wholesaler, Dec 2010 - Mar 2011 (real) | "Our January discount almost doubled units sold; triple the stock" | not run yet |
+| case13 | Same shop, Jul - Nov 2011 (real) | "Autumn growth is real and broad; hire two temporary packers" | not run yet |
+
+Answer key fingerprint, SHA-256 of `cases11_13_key.md`:
+`643cbaba5a3063fc0ea65ef79a25c6789793ac3e636fdbf01fb9c37a53a0f841`
+
+The owners and their stories in these three cases (the website launch, the January discount, the hiring plan) are invented; the numbers come from the real datasets.
+
 ## Run it
 
 Requirements: Python 3.9+, `pip install -r requirements.txt`, and an Anthropic API key in the `ANTHROPIC_API_KEY` environment variable.
@@ -55,7 +74,7 @@ At the end the program asks for your decision (`approve` / `reject`). Outputs ar
 
 ## Honest limits
 
-- Early build. Four real-data cases so far (11.5/12, one run each); a reliable error rate needs many more cases and repeated runs.
+- Early build. Four real-data practice cases (22/24 over 8 runs, but the system was tuned on them) and three held-out cases (results pending). A reliable error rate needs many more cases and repeated runs.
 - Works on weekly CSV tables only.
 - Diagnosis, not a guarantee: the summary gives conditional next steps, and a human decides.
 
@@ -63,6 +82,8 @@ At the end the program asks for your decision (`approve` / `reject`). Outputs ar
 
 - **Brazilian E-Commerce Public Dataset by Olist** (Kaggle, `olistbr/brazilian-ecommerce`), licensed **CC BY-NC-SA 4.0**. Cases 7, 9 and 10 are weekly aggregates derived from it; case 9 contains deliberately duplicated rows as a test. These derived files are shared under the same license (non-commercial, share-alike).
 - **Bike Sharing Dataset**, UCI Machine Learning Repository. Case 8 is a weekly aggregate of the hourly data. Please cite: Fanaee-T, Hadi, and Gama, Joao, "Event labeling combining ensemble detectors and background knowledge", *Progress in Artificial Intelligence* (2013), pp. 1-15, Springer, doi:10.1007/s13748-013-0040-3.
+- **Hotel booking demand datasets**: Nuno Antonio, Ana de Almeida and Luis Nunes, *Data in Brief* 22 (2019), pp. 41-49, doi:10.1016/j.dib.2018.11.126, an open-access article under the CC BY license, with the data supplied with the paper (I used the copy in the TidyTuesday project, 2020-02-11). Case 11 is a weekly aggregate of the City Hotel bookings by booking window.
+- **Online Retail**: Chen, D. (2015), UCI Machine Learning Repository, doi:10.24432/C5BW33, licensed **CC BY 4.0** (I used the copy in `databricks/Spark-The-Definitive-Guide`). Cases 12 and 13 are weekly aggregates of product sales (postage and fees excluded).
 - Cases 1-6 are synthetic.
 
 A license for the code has not been chosen yet.
