@@ -231,7 +231,70 @@ def data_health(name):
     return result
 
 
+def event_impact(name, column, event_start, event_end=None, per=None, group_by=None):
+    """سهم یک اتفاق مشخص (طوفان، کمپین، تعطیلی) از تغییر یک ستون، با کد.
+    مقدار هفته‌(های) اتفاق را با میانگین چند هفته‌ی قبل و چند هفته‌ی بعد مقایسه می‌کند و تغییر را دو تکه می‌کند:
+    تکه‌ای که فقط در همان هفته‌ها بود (اثر خود اتفاق) و تکه‌ای که بعد از آن هم ماند (تغییر ماندگار، مثل فصل)."""
+    fields, rows = load(name)
+    check_columns(fields, "week", column, per, group_by)
+    start = int(event_start)
+    end = int(event_end) if event_end not in (None, "") else start
+    if end < start:
+        start, end = end, start
+    sums = {}
+    for r in rows:
+        if r[column] == "" or (per and r[per] == ""):
+            continue
+        g = r[group_by] if group_by else "all"
+        w = int(float(r["week"]))
+        a = sums.setdefault(g, {}).setdefault(w, [0.0, 0.0])
+        a[0] += float(r[column])
+        a[1] += float(r[per]) if per else 1.0
+    result = {"column": column, "per": per, "event_weeks": [start, end], "groups": {}}
+    for g, weeks in sorted(sums.items()):
+        series = {w: (n / d if per else n) for w, (n, d) in weeks.items() if d}
+        ev = [series[w] for w in range(start, end + 1) if w in series]
+        if not ev:
+            result["groups"][g] = "هفته‌ی اتفاق در داده نیست"
+            continue
+        e = sum(ev) / len(ev)
+        windows = {}
+        for k in (2, 3, 4):
+            bw = [w for w in range(start - k, start) if w in series]
+            aw = [w for w in range(end + 1, end + 1 + k) if w in series]
+            if not bw:
+                continue
+            b = sum(series[w] for w in bw) / len(bw)
+            info = {"before_weeks": bw, "before_mean": round(b, 2), "event_value": round(e, 2),
+                    "change_vs_before": round(e - b, 2),
+                    "change_vs_before_percent": round((e - b) / b * 100, 1) if b else None}
+            if aw:
+                a = sum(series[w] for w in aw) / len(aw)
+                info.update({"after_weeks": aw, "after_mean": round(a, 2),
+                             "expected_if_no_event": round((b + a) / 2, 2),
+                             "event_only_change": round(e - a, 2),
+                             "lasting_change": round(a - b, 2)})
+                if e - b:
+                    info["event_share_percent"] = round((e - a) / (e - b) * 100, 1)
+            else:
+                info["note"] = "بعد از اتفاق هفته‌ای در داده نیست؛ نمی‌شود اثر خود اتفاق را از تغییر ماندگار جدا کرد."
+            windows["k" + str(k)] = info
+        shares = [v["event_share_percent"] for v in windows.values() if "event_share_percent" in v]
+        summary = {"windows": windows}
+        if shares:
+            lo, hi = min(shares), max(shares)
+            summary["event_share_range_percent"] = [lo, hi]
+            summary["plain"] = ("از کل تغییر نسبت به هفته‌های قبل، بسته به اینکه چند هفته برای مقایسه برداریم، بین "
+                                + str(lo) + "٪ و " + str(hi) + "٪ فقط در هفته‌(های) اتفاق رخ داده (اثر خود اتفاق)؛ "
+                                + "بقیه بعد از آن هم مانده (تغییر ماندگار، مثل فصل یا روند).")
+        result["groups"][g] = summary
+    result["warning"] = ("فرض این ابزار: هفته‌های قبل و بعد اتفاق دیگری ندارند. اگر data_health آن هفته‌ها را مشکوک دانسته "
+                         "(تعطیلات، داده‌ی ناقص، ردیف تکراری)، نتیجه کج می‌شود؛ این را صریح بگو.")
+    return result
+
+
 FUNCS = {
+    "event_impact": event_impact,
     "data_health": data_health,
     "weekly_values": weekly_values,
     "list_files": list_files,
@@ -258,6 +321,12 @@ STR = {"type": "string"}
 TOOLS = [
     {"name": "list_files", "description": "فهرست فایل‌های داده‌ی این پرونده.",
      "input_schema": {"type": "object", "properties": {}}},
+    {"name": "event_impact",
+     "description": "وقتی یک اتفاق مشخص (طوفان، کمپین، تعطیلی، تغییر قیمت) علت حدس زده می‌شود: سهم آن اتفاق از تغییر را با کد حساب می‌کند. هفته‌(های) اتفاق را با چند هفته‌ی قبل و بعد مقایسه می‌کند (با ۲، ۳ و ۴ هفته) و تغییر را به «اثر خود اتفاق» و «تغییر ماندگار» تقسیم می‌کند. per اختیاری است (مثلاً days یا hours_recorded برای میانگین در هر روز یا ساعت).",
+     "input_schema": {"type": "object",
+                      "properties": {"name": STR, "column": STR, "event_start": {"type": "integer"},
+                                     "event_end": {"type": "integer"}, "per": STR, "group_by": STR},
+                      "required": ["name", "column", "event_start"]}},
     {"name": "data_health",
      "description": "چکاپ داده با کد، قبل از هر تحلیل: ردیف تکراری، خانه‌ی خالی، هفته‌ی گم‌شده، هفته‌ی ناقص، هفته‌ی با داده‌ی خیلی کم، جهش یا سقوط ناگهانی. خروجی warnings را جدی بگیر.",
      "input_schema": {"type": "object", "properties": {"name": STR}, "required": ["name"]}},
@@ -296,7 +365,8 @@ SYSTEM = """تو «تشخیص‌دهنده» هستی. کارت پیدا کرد�
    - مدرکی که اگر دیده شود فرضیه را رد می‌کند
    - درخواست مدرک (حداکثر ۳، کوچک و آسان)
 7. راه‌حل پیشنهاد نده.
-8. اگر مدرک با حدس صاحب کسب‌وکار می‌خواند، صادقانه بگو حدسش درست است. مخالفت بدون مدرک هم خطاست، درست مثل موافقت بدون مدرک."""
+8. اگر مدرک با حدس صاحب کسب‌وکار می‌خواند، صادقانه بگو حدسش درست است. مخالفت بدون مدرک هم خطاست، درست مثل موافقت بدون مدرک.
+9. اگر صاحب کسب‌وکار یک اتفاق مشخص را علت می‌داند (طوفان، کمپین، تعطیلی، تغییر قیمت)، event_impact را صدا بزن و سهم آن اتفاق را با عدد خود ابزار بگو. اگر سهم با تعداد هفته‌های مقایسه فرق می‌کند، بازه‌اش را بگو، نه یک عدد قطعی."""
 
 
 # ====================== حلقه‌ی عامل (برای تشخیص‌دهنده و منتقد مشترک) ======================
@@ -362,6 +432,7 @@ CRITIC_SYSTEM = """تو «منتقد مستقل» هستی. گزارش یک تش
 3. استدلال سردرگم یا دور از منطق.
 4. هشدارهای چکاپ داده: خودت data_health را صدا بزن و ببین تشخیص‌دهنده هشدارها را جدی گرفته یا نه.
 5. مخالفت یا موافقت بی‌دلیل با حدس صاحب کسب‌وکار؛ هر دو خطاست.
+6. اگر اتفاق مشخصی علت حدس زده شده، خودت event_impact را اجرا کن و ببین سهمی که تشخیص‌دهنده گفته درست است یا نه.
 هر عدد باید از ابزار باشد، حساب ذهنی نکن.
 خروجی دقیقاً:
 - حکم: قبول / قبول با شرط / رد
@@ -413,7 +484,7 @@ OWNER_SYSTEM = """تو نویسنده‌ی «خلاصه برای صاحب کسب
 ## مشکل در یک جمله
 ## چه اتفاقی افتاده (۳ نکته‌ی کوتاه)
 ## چقدر مطمئنیم
-(کم/متوسط/زیاد و یک دلیل ساده. اگر داده مشکل داشت، مثل ردیف تکراری یا هفته‌ی ناقص، همین‌جا ساده بگو کدام بخش داده قابل اعتماد نیست.)
+(کم/متوسط/زیاد و یک دلیل ساده. اگر سهم یک اتفاق با event_impact حساب شده، آن را ساده بگو، مثلاً «حدود یک‌سوم تا نصف افت مال خود طوفان بود و بقیه بعد از آن هم ماند». اگر داده مشکل داشت، مثل ردیف تکراری یا هفته‌ی ناقص، همین‌جا ساده بگو کدام بخش داده قابل اعتماد نیست.)
 ## چه کار کنیم (۳ پیشنهاد)
 هر پیشنهاد: چه کار، چرا، چقدر کار دارد (کم/متوسط/زیاد). اول کارهای ارزان و بی‌خطر برای اینکه علت روشن شود (مثلاً چک کردن سفارش‌های واقعی)، بعد اصلاح. اگر داده خراب یا ناقص است، پیشنهاد اول باید درست کردن یا تأیید داده باشد و تا آن موقع هیچ تصمیم پولی بزرگ (مثل بیشتر یا قطع کردن بودجه) گرفته نشود. چون علت هنوز قطعی نیست، پیشنهادها را شرطی بنویس («اگر معلوم شد که...»). حکم قطعی نده.
 ## چه چیزی را هنوز نمی‌دانیم
