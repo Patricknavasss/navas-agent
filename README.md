@@ -8,7 +8,7 @@ This is an early, learning-in-public project by Patrick Navasartian (applied AI 
 
 ## How it works
 
-1. **Data health check (code, not a model).** Before any analysis it flags duplicate rows, empty cells, missing or partial weeks, tiny weeks, and sudden jumps or drops.
+1. **Data health check (code, not a model).** Before any analysis it flags duplicate rows, empty cells, missing or partial weeks, tiny weeks, and sudden jumps or drops. It also checks **freshness**: the newest week in each file is compared with the date of the owner's question (`as_of` in the case's `meta.json`, otherwise today's date). A file can look complete and still be old; then the agent must not report an old week as "this week". Every owner summary starts with a "data up to" stamp computed by code. (This check came from a reader's comment on LinkedIn.)
 2. **Diagnoser agent** (Claude Haiku) reads the owner's problem and calls tools. It may not do mental arithmetic: every number must come from a tool output.
 3. **Event impact (code).** When the owner blames a specific event (a storm, a campaign, a closure), the agent measures how much of the change happened only in the event weeks and how much lasted afterwards, using 2, 3 and 4 weeks before and after. It reports a range, not a single magic number.
 4. **Number auditor (code).** Flags any number in a report that does not appear in the tool outputs.
@@ -26,6 +26,7 @@ Each case is a weekly CSV table plus the owner's claim (`problem.txt`). Some own
 | case8 | Bike sharing, Washington DC 2012 (real) | "The storm caused the drop" | Credit the storm's real extra dip, see the seasonal decline, and flag the missing recorded hours | 3/3, 2/3, 2.5/3, 2.5/3 (re-graded, see notes) |
 | case9 | Olist, with injected duplicate rows | "Our campaign doubled orders" | Catch the duplicates, and not support tripling the budget | 3/3 |
 | case10 | Olist 2018 (real) | "Orders collapsed, cut marketing" | Flag the incomplete end of the export, and not support cutting the budget | 3/3 |
+| case14 | UK online gift wholesaler, Apr-Aug 2011 (real); the file stops 11 days before the owner's question | "This week's sales dropped; give 20% off from tomorrow" | Notice that the newest week in the file is not this week, and ask for a fresh export before any discount | not run yet (practice case for the freshness check) |
 | case1-6 | Synthetic practice cases | various | various | early tests |
 
 **Score so far on real-data cases: 22 / 24 over 8 runs** (2026-11-05 and 2026-11-06).
@@ -77,6 +78,8 @@ Requirements: Python 3.9+, `pip install -r requirements.txt`, and an Anthropic A
 python3 run.py case8
 ```
 
+A case is a folder in `cases/` with one or more weekly CSV files, `problem.txt` (the owner's words), and optionally `meta.json`: `{"as_of": "YYYY-MM-DD"}` is the date of the owner's question (without it, today's date is used), and `"not_current": ["file.csv"]` marks comparison files, such as last year's data, that are not expected to be up to date.
+
 At the end the program asks for your decision (`approve` / `reject`). Outputs are written next to `run.py`: `report_<case>.md`, `critique_<case>.md`, `summary_<case>.md`, `audit_<case>.txt`, `trace_<case>.json`, `approval_<case>.json`, `chart_<case>.svg`, and, after approval, `final_<case>.html`.
 
 ## Honest limits
@@ -90,7 +93,7 @@ At the end the program asks for your decision (`approve` / `reject`). Outputs ar
 - **Brazilian E-Commerce Public Dataset by Olist** (Kaggle, `olistbr/brazilian-ecommerce`), licensed **CC BY-NC-SA 4.0**. Cases 7, 9 and 10 are weekly aggregates derived from it; case 9 contains deliberately duplicated rows as a test. These derived files are shared under the same license (non-commercial, share-alike).
 - **Bike Sharing Dataset**, UCI Machine Learning Repository. Case 8 is a weekly aggregate of the hourly data. Please cite: Fanaee-T, Hadi, and Gama, Joao, "Event labeling combining ensemble detectors and background knowledge", *Progress in Artificial Intelligence* (2013), pp. 1-15, Springer, doi:10.1007/s13748-013-0040-3.
 - **Hotel booking demand datasets**: Nuno Antonio, Ana de Almeida and Luis Nunes, *Data in Brief* 22 (2019), pp. 41-49, doi:10.1016/j.dib.2018.11.126, an open-access article under the CC BY license, with the data supplied with the paper (I used the copy in the TidyTuesday project, 2020-02-11). Case 11 is a weekly aggregate of the City Hotel bookings by booking window.
-- **Online Retail**: Chen, D. (2015), UCI Machine Learning Repository, doi:10.24432/C5BW33, licensed **CC BY 4.0** (I used the copy in `databricks/Spark-The-Definitive-Guide`). Cases 12 and 13 are weekly aggregates of product sales (postage and fees excluded).
+- **Online Retail**: Chen, D. (2015), UCI Machine Learning Repository, doi:10.24432/C5BW33, licensed **CC BY 4.0** (I used the copy in `databricks/Spark-The-Definitive-Guide`). Cases 12, 13 and 14 are weekly aggregates of product sales (postage and fees excluded).
 - Cases 1-6 are synthetic.
 
 A license for the code has not been chosen yet.
